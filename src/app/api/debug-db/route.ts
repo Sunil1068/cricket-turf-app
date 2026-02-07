@@ -36,6 +36,75 @@ export async function GET(request: NextRequest) {
             SELECT schema_name FROM information_schema.schemata
         `)
 
+        // Initialize if requested
+        let initStatus = 'not_requested'
+        const { searchParams } = new URL(request.url)
+        if (searchParams.get('init') === 'true') {
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS turf_users (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        email TEXT UNIQUE NOT NULL,
+                        phone TEXT,
+                        "passwordHash" TEXT NOT NULL,
+                        "emailVerified" TIMESTAMP WITH TIME ZONE,
+                        "verificationToken" TEXT,
+                        role TEXT DEFAULT 'USER',
+                        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+                    CREATE TABLE IF NOT EXISTS turf_accounts (
+                        id TEXT PRIMARY KEY,
+                        "userId" TEXT NOT NULL REFERENCES turf_users(id) ON DELETE CASCADE,
+                        type TEXT NOT NULL,
+                        provider TEXT NOT NULL,
+                        "providerAccountId" TEXT NOT NULL,
+                        refresh_token TEXT,
+                        access_token TEXT,
+                        expires_at INTEGER,
+                        token_type TEXT,
+                        scope TEXT,
+                        id_token TEXT,
+                        session_state TEXT,
+                        UNIQUE(provider, "providerAccountId")
+                    );
+                    CREATE TABLE IF NOT EXISTS turf_sessions (
+                        id TEXT PRIMARY KEY,
+                        "sessionToken" TEXT UNIQUE NOT NULL,
+                        "userId" TEXT NOT NULL REFERENCES turf_users(id) ON DELETE CASCADE,
+                        expires TIMESTAMP WITH TIME ZONE NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS turf_bookings (
+                        id TEXT PRIMARY KEY,
+                        "userId" TEXT NOT NULL REFERENCES turf_users(id) ON DELETE CASCADE,
+                        date TIMESTAMP WITH TIME ZONE NOT NULL,
+                        "startTimeUtc" TIMESTAMP WITH TIME ZONE NOT NULL,
+                        "endTimeUtc" TIMESTAMP WITH TIME ZONE NOT NULL,
+                        "slotsCount" INTEGER NOT NULL,
+                        "amountPaise" INTEGER NOT NULL,
+                        status TEXT DEFAULT 'PENDING',
+                        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        "paymentId" TEXT,
+                        UNIQUE(date, "startTimeUtc", "endTimeUtc")
+                    );
+                    CREATE TABLE IF NOT EXISTS turf_payments (
+                        id TEXT PRIMARY KEY,
+                        provider TEXT DEFAULT 'razorpay',
+                        "razorpayOrderId" TEXT,
+                        "razorpayPaymentId" TEXT,
+                        "razorpaySignature" TEXT,
+                        "amountPaise" INTEGER NOT NULL,
+                        currency TEXT DEFAULT 'INR',
+                        status TEXT DEFAULT 'PENDING',
+                        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+                `)
+                initStatus = 'success'
+            } catch (e: any) {
+                initStatus = `Error: ${e.message}`
+            }
+        }
+
         // Try direct query on turf_users
         let turfUsersCount = 'unknown'
         try {
@@ -55,7 +124,7 @@ export async function GET(request: NextRequest) {
             createTestTable = `Error: ${e.message}`
         }
 
-        // List tables in public (refresh after create)
+        // List tables in public (refresh after actions)
         const tablesResAfter = await client.query(`
             SELECT table_name 
             FROM information_schema.tables 
@@ -72,6 +141,7 @@ export async function GET(request: NextRequest) {
             public_tables: tablesResAfter.rows.map(r => r.table_name),
             turf_users_count: turfUsersCount,
             create_test_table: createTestTable,
+            init_status: initStatus,
             all_schemas: schemasRes.rows.map(r => r.schema_name),
             url_sanitized: dbUrl.replace(/:[^:@]+@/, ':***@') // Sanitize password
         })
