@@ -15,6 +15,20 @@ async function main() {
         console.log('Creating tables...');
 
         await client.query(`
+            -- Create Enum Types
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'Role') THEN
+                    CREATE TYPE "Role" AS ENUM ('USER', 'OWNER');
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'BookingStatus') THEN
+                    CREATE TYPE "BookingStatus" AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED');
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PaymentStatus') THEN
+                    CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED');
+                END IF;
+            END $$;
+
             CREATE TABLE IF NOT EXISTS turf_users (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -23,7 +37,7 @@ async function main() {
                 "passwordHash" TEXT NOT NULL,
                 "emailVerified" TIMESTAMP WITH TIME ZONE,
                 "verificationToken" TEXT,
-                role TEXT DEFAULT 'USER',
+                role "Role" DEFAULT 'USER',
                 "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             );
 
@@ -58,7 +72,7 @@ async function main() {
                 "endTimeUtc" TIMESTAMP WITH TIME ZONE NOT NULL,
                 "slotsCount" INTEGER NOT NULL,
                 "amountPaise" INTEGER NOT NULL,
-                status TEXT DEFAULT 'PENDING',
+                status "BookingStatus" DEFAULT 'PENDING',
                 "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 "paymentId" TEXT,
                 UNIQUE(date, "startTimeUtc", "endTimeUtc")
@@ -72,7 +86,7 @@ async function main() {
                 "razorpaySignature" TEXT,
                 "amountPaise" INTEGER NOT NULL,
                 currency TEXT DEFAULT 'INR',
-                status TEXT DEFAULT 'PENDING',
+                status "PaymentStatus" DEFAULT 'PENDING',
                 "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             );
 
