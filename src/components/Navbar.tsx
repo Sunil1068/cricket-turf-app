@@ -27,9 +27,6 @@ export function Navbar() {
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center gap-6">
-                    <Link href="/venue" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
-                        Book Slots
-                    </Link>
                     {/* Only show Dashboard link if logged in */}
                     {session?.user && (
                         <Link href="/dashboard" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
