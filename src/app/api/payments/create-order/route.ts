@@ -3,9 +3,10 @@ import { getServerSession } from 'next-auth'
 import Razorpay from 'razorpay'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import { authOptions } from '@/lib/auth'
 
 const createOrderSchema = z.object({
-  bookingId: z.string(),
+  bookingIds: z.array(z.string()),
 })
 
 const razorpay = new Razorpay({
@@ -15,7 +16,7 @@ const razorpay = new Razorpay({
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
 
     if (!session?.user?.email) {
       return NextResponse.json(
@@ -25,52 +26,44 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { bookingId } = createOrderSchema.parse(body)
+    const { bookingIds } = createOrderSchema.parse(body)
 
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: { user: true },
+    const bookings = await prisma.booking.findMany({
+      where: {
+        id: { in: bookingIds },
+        user: { email: session.user.email }
+      },
     })
 
-    if (!booking) {
+    if (bookings.length !== bookingIds.length) {
       return NextResponse.json(
-        { message: 'Booking not found' },
+        { message: 'Some bookings not found or unauthorized' },
         { status: 404 }
       )
     }
 
-    if (booking.user.email !== session.user.email) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
-
-    if (booking.status !== 'PENDING') {
-      return NextResponse.json(
-        { message: 'Booking is not in pending state' },
-        { status: 400 }
-      )
-    }
+    const totalAmountPaise = bookings.reduce((sum: number, b: any) => sum + b.amountPaise, 0)
 
     // Create Razorpay order
     const options = {
-      amount: booking.amountPaise,
+      amount: totalAmountPaise,
       currency: 'INR',
-      receipt: `booking_${booking.id}`,
+      receipt: `multi_booking_${bookingIds[0]}`,
     }
 
     const order = await razorpay.orders.create(options)
 
-    // Create payment record
+    // Create payment record and link to bookings
     const payment = await prisma.payment.create({
       data: {
-        bookingId: booking.id,
         provider: 'razorpay',
         razorpayOrderId: order.id,
-        amountPaise: booking.amountPaise,
+        amountPaise: totalAmountPaise,
         currency: 'INR',
         status: 'PENDING',
+        bookings: {
+          connect: bookingIds.map(id => ({ id }))
+        }
       },
     })
 
@@ -79,6 +72,7 @@ export async function POST(request: NextRequest) {
       amount: order.amount,
       currency: order.currency,
       paymentId: payment.id,
+      keyId: process.env.RAZORPAY_KEY_ID
     })
   } catch (error) {
     console.error('Order creation error:', error)

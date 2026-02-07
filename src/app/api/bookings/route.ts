@@ -71,7 +71,7 @@ export async function POST(request: Request) {
                         endTimeUtc: endTimeUtc,
                         slotsCount: 1,
                         amountPaise: slot.price * 100,
-                        status: 'CONFIRMED', // Direct confirm for now // TODO: PENDING if payment gateway
+                        status: 'PENDING',
                     }
                 })
                 createdBookings.push(booking)
@@ -79,7 +79,11 @@ export async function POST(request: Request) {
             return createdBookings
         })
 
-        return NextResponse.json({ success: true, bookings: result })
+        return NextResponse.json({
+            success: true,
+            bookingIds: result.map(b => b.id),
+            totalAmountPaise: result.reduce((sum, b) => sum + b.amountPaise, 0)
+        })
 
     } catch (error: any) {
         console.error('Booking error:', error)

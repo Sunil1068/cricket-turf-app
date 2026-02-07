@@ -68,7 +68,8 @@ model Booking {
   status       BookingStatus @default(PENDING)
   createdAt    DateTime      @default(now())
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payment      Payment?
+  paymentId    String?
+  payment      Payment?      @relation(fields: [paymentId], references: [id])
 
   @@unique([date, startTimeUtc, endTimeUtc])
   @@map("bookings")
@@ -76,7 +77,6 @@ model Booking {
 
 model Payment {
   id                  String        @id @default(cuid())
-  bookingId           String        @unique
   provider            String        @default("razorpay")
   razorpayOrderId     String?
   razorpayPaymentId   String?
@@ -85,7 +85,7 @@ model Payment {
   currency            String        @default("INR")
   status              PaymentStatus @default(PENDING)
   createdAt           DateTime      @default(now())
-  booking             Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookings            Booking[]
 
   @@map("payments")
 }

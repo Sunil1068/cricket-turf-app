@@ -4,29 +4,62 @@
 import { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from '@/components/ui/use-toast'
 import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react'
 import dayjs from 'dayjs'
 
+declare global {
+    interface Window {
+        Razorpay: any
+    }
+}
+
 function CheckoutContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const { data: session } = useSession()
 
     const dateStr = searchParams.get('date')
-    const slotsParam = searchParams.get('slots') // Expecting JSON string of slot objects or ids
+    const slotsParam = searchParams.get('slots')
 
-    // Parse slots
     const slots = slotsParam ? JSON.parse(decodeURIComponent(slotsParam)) : []
-
     const totalAmount = slots.reduce((sum: number, slot: any) => sum + slot.price, 0)
 
+    const loadRazorpay = () => {
+        return new Promise((resolve) => {
+            const script = document.createElement('script')
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+            script.onload = () => resolve(true)
+            script.onerror = () => resolve(false)
+            document.body.appendChild(script)
+        })
+    }
+
     const handleBooking = async () => {
+        if (!session) {
+            toast({
+                title: 'Please login',
+                description: 'You need to be logged in to book slots.',
+                variant: 'destructive',
+            })
+            router.push('/login')
+            return
+        }
+
         setLoading(true)
         try {
-            const response = await fetch('/api/bookings', {
+            // 1. Load Razorpay script
+            const res = await loadRazorpay()
+            if (!res) {
+                throw new Error('Razorpay SDK failed to load')
+            }
+
+            // 2. Create pending bookings
+            const bookingResponse = await fetch('/api/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -36,25 +69,78 @@ function CheckoutContent() {
                 })
             })
 
-            const data = await response.json()
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Booking failed')
+            const bookingData = await bookingResponse.json()
+            if (!bookingResponse.ok) {
+                throw new Error(bookingData.error || 'Failed to initialize booking')
             }
 
-            toast({
-                title: 'Booking Confirmed!',
-                description: 'Your slots have been successfully booked.',
-                variant: 'default', // success
+            const { bookingIds } = bookingData
+
+            // 3. Create Razorpay order
+            const orderResponse = await fetch('/api/payments/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookingIds })
             })
 
-            // Redirect to dashboard or success page
-            router.push('/dashboard')
-            router.refresh()
+            const orderData = await orderResponse.json()
+            if (!orderResponse.ok) {
+                throw new Error(orderData.message || 'Failed to create payment order')
+            }
+
+            // 4. Open Razorpay Modal
+            const options = {
+                key: orderData.keyId,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: 'TURF CRICKET',
+                description: `Booking for ${dayjs(dateStr).format('MMM D, YYYY')}`,
+                order_id: orderData.orderId,
+                handler: async function (response: any) {
+                    try {
+                        const verifyResponse = await fetch('/api/payments/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...response,
+                                paymentId: orderData.paymentId
+                            })
+                        })
+
+                        const verifyData = await verifyResponse.json()
+                        if (verifyResponse.ok) {
+                            toast({
+                                title: 'Booking Confirmed!',
+                                description: 'Your slots have been successfully booked.',
+                            })
+                            router.push('/dashboard')
+                            router.refresh()
+                        } else {
+                            throw new Error(verifyData.message || 'Payment verification failed')
+                        }
+                    } catch (err: any) {
+                        toast({
+                            title: 'Verification Failed',
+                            description: err.message,
+                            variant: 'destructive',
+                        })
+                    }
+                },
+                prefill: {
+                    name: session.user.name,
+                    email: session.user.email,
+                },
+                theme: {
+                    color: '#9333ea',
+                }
+            }
+
+            const paymentObject = new window.Razorpay(options)
+            paymentObject.open()
 
         } catch (error: any) {
             toast({
-                title: 'Booking Failed',
+                title: 'Transaction Error',
                 description: error.message,
                 variant: 'destructive',
             })
