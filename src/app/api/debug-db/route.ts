@@ -36,6 +36,15 @@ export async function GET(request: NextRequest) {
             SELECT schema_name FROM information_schema.schemata
         `)
 
+        // Try direct query on turf_users
+        let turfUsersCount = 'unknown'
+        try {
+            const countRes = await client.query('SELECT count(*) FROM turf_users')
+            turfUsersCount = countRes.rows[0].count
+        } catch (e: any) {
+            turfUsersCount = `Error: ${e.message}`
+        }
+
         await client.end()
 
         return NextResponse.json({
@@ -44,6 +53,7 @@ export async function GET(request: NextRequest) {
             user: metaRes.rows[0].current_user,
             search_path: pathRes.rows[0].search_path,
             public_tables: tablesRes.rows.map(r => r.table_name),
+            turf_users_count: turfUsersCount,
             all_schemas: schemasRes.rows.map(r => r.schema_name),
             url_sanitized: dbUrl.replace(/:[^:@]+@/, ':***@') // Sanitize password
         })

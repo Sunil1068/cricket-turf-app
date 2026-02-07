@@ -15,7 +15,7 @@ async function main() {
         console.log('Creating tables...');
 
         await client.query(`
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE IF NOT EXISTS turf_users (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
@@ -27,9 +27,9 @@ async function main() {
                 "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             );
 
-            CREATE TABLE IF NOT EXISTS accounts (
+            CREATE TABLE IF NOT EXISTS turf_accounts (
                 id TEXT PRIMARY KEY,
-                "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                "userId" TEXT NOT NULL REFERENCES turf_users(id) ON DELETE CASCADE,
                 type TEXT NOT NULL,
                 provider TEXT NOT NULL,
                 "providerAccountId" TEXT NOT NULL,
@@ -43,16 +43,16 @@ async function main() {
                 UNIQUE(provider, "providerAccountId")
             );
 
-            CREATE TABLE IF NOT EXISTS sessions (
+            CREATE TABLE IF NOT EXISTS turf_sessions (
                 id TEXT PRIMARY KEY,
                 "sessionToken" TEXT UNIQUE NOT NULL,
-                "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                "userId" TEXT NOT NULL REFERENCES turf_users(id) ON DELETE CASCADE,
                 expires TIMESTAMP WITH TIME ZONE NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS bookings (
+            CREATE TABLE IF NOT EXISTS turf_bookings (
                 id TEXT PRIMARY KEY,
-                "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                "userId" TEXT NOT NULL REFERENCES turf_users(id) ON DELETE CASCADE,
                 date TIMESTAMP WITH TIME ZONE NOT NULL,
                 "startTimeUtc" TIMESTAMP WITH TIME ZONE NOT NULL,
                 "endTimeUtc" TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -60,12 +60,12 @@ async function main() {
                 "amountPaise" INTEGER NOT NULL,
                 status TEXT DEFAULT 'PENDING',
                 "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                "paymentId" TEXT,
                 UNIQUE(date, "startTimeUtc", "endTimeUtc")
             );
 
-            CREATE TABLE IF NOT EXISTS payments (
+            CREATE TABLE IF NOT EXISTS turf_payments (
                 id TEXT PRIMARY KEY,
-                "bookingId" TEXT UNIQUE NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
                 provider TEXT DEFAULT 'razorpay',
                 "razorpayOrderId" TEXT,
                 "razorpayPaymentId" TEXT,
@@ -75,6 +75,14 @@ async function main() {
                 status TEXT DEFAULT 'PENDING',
                 "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             );
+
+            -- Ensure foreign key for bookings -> payments
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_turf_bookings_payment') THEN
+                    ALTER TABLE turf_bookings ADD CONSTRAINT fk_turf_bookings_payment FOREIGN KEY ("paymentId") REFERENCES turf_payments(id);
+                END IF;
+            END $$;
         `);
         console.log('Tables created successfully.');
 
