@@ -24,7 +24,7 @@ model User {
   accounts     Account[]
   sessions     Session[]
 
-  @@map("users")
+  @@map("turf_users")
 }
 
 model Account {
@@ -44,7 +44,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@map("accounts")
+  @@map("turf_accounts")
 }
 
 model Session {
@@ -54,7 +54,7 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("sessions")
+  @@map("turf_sessions")
 }
 
 model Booking {
@@ -72,7 +72,7 @@ model Booking {
   payment      Payment?      @relation(fields: [paymentId], references: [id])
 
   @@unique([date, startTimeUtc, endTimeUtc])
-  @@map("bookings")
+  @@map("turf_bookings")
 }
 
 model Payment {
@@ -87,7 +87,7 @@ model Payment {
   createdAt           DateTime      @default(now())
   bookings            Booking[]
 
-  @@map("payments")
+  @@map("turf_payments")
 }
 
 enum Role {
