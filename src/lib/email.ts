@@ -1,25 +1,35 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function sendVerificationEmail(email: string, token: string) {
     try {
-        const confirmationLink = `${process.env.NEXTAUTH_URL}/verify?token=${token}`
+        const apiKey = process.env.RESEND_API_KEY
+        if (!apiKey) {
+            throw new Error('RESEND_API_KEY is not defined')
+        }
 
-        await resend.emails.send({
-            from: 'onboarding@resend.dev', // Default testing domain for Resend
+        const resend = new Resend(apiKey)
+        const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+        const confirmationLink = `${baseUrl}/verify?token=${token}`
+
+        const result = await resend.emails.send({
+            from: 'onboarding@resend.dev',
             to: email,
             subject: 'Verify your email - Cricket Turf Booking',
             html: `
-        <h1>Verify your email</h1>
-        <p>Click the link below to verify your account:</p>
-        <a href="${confirmationLink}">${confirmationLink}</a>
-      `
+                <h1>Verify your email</h1>
+                <p>Click the link below to verify your account:</p>
+                <a href="${confirmationLink}">${confirmationLink}</a>
+            `
         })
+
+        if (result.error) {
+            throw result.error
+        }
+
         console.log(`Verification email sent to ${email}`)
         return { success: true }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to send verification email:', error)
-        return { success: false, error }
+        return { success: false, error: error.message || error }
     }
 }

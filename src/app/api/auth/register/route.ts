@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import crypto from 'crypto'
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -47,14 +48,21 @@ export async function POST(request: NextRequest) {
 
     // Send verification email
     const { sendVerificationEmail } = await import('@/lib/email')
-    await sendVerificationEmail(email, verificationToken)
+    const emailResult = await sendVerificationEmail(email, verificationToken)
+
+    if (!emailResult.success) {
+      console.warn('User created but verification email failed to send:', emailResult.error)
+    }
 
     return NextResponse.json(
       { message: 'User created successfully. Please check your email.', userId: user.id },
       { status: 201 }
     )
-  } catch (error) {
-    console.error('Registration error:', error)
+  } catch (error: any) {
+    console.error('Registration error details:', {
+      message: error.message,
+      stack: error.stack,
+    })
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
