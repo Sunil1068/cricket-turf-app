@@ -53,10 +53,10 @@ export default async function OwnerDashboardPage() {
 
   // Calculate stats
   const totalBookings = bookings.length
-  const confirmedBookings = bookings.filter(b => b.status === 'CONFIRMED').length
+  const confirmedBookings = bookings.filter((b: any) => b.status === 'CONFIRMED').length
   const totalRevenue = bookings
-    .filter(b => b.status === 'CONFIRMED')
-    .reduce((sum, b) => sum + b.amountPaise, 0) / 100
+    .filter((b: any) => b.status === 'CONFIRMED')
+    .reduce((sum: number, b: any) => sum + b.amountPaise, 0) / 100
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -140,7 +140,7 @@ export default async function OwnerDashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bookings.map((booking) => (
+                    {bookings.map((booking: any) => (
                       <TableRow key={booking.id}>
                         <TableCell>{dayjs(booking.date).format('MMM D, YYYY')}</TableCell>
                         <TableCell>
@@ -156,7 +156,7 @@ export default async function OwnerDashboardPage() {
                         </TableCell>
                         <TableCell>
                           {booking.payment ? (
-                            <Badge variant={booking.payment.status === 'PAID' ? 'default' : 'destructive'}>
+                            <Badge variant={booking.payment.status === 'SUCCESS' ? 'default' : 'destructive'}>
                               {booking.payment.status}
                             </Badge>
                           ) : (
@@ -189,7 +189,7 @@ export default async function OwnerDashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
+                    {users.map((user: any) => (
                       <TableRow key={user.id}>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
