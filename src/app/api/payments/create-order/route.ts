@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         razorpayOrderId: order.id,
         amountPaise: booking.amountPaise,
         currency: 'INR',
-        status: 'CREATED',
+        status: 'PENDING',
       },
     })
 
