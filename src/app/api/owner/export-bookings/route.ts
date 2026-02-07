@@ -10,6 +10,8 @@ dayjs.extend(timezone)
 
 const TIMEZONE = 'Asia/Kolkata'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession()
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
       'Created At',
     ]
 
-    const csvRows = bookings.map((booking) => [
+    const csvRows = bookings.map((booking: any) => [
       booking.id,
       dayjs(booking.date).format('YYYY-MM-DD'),
       dayjs(booking.startTimeUtc).tz(TIMEZONE).format('HH:mm:ss'),
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
     ])
 
     const csvContent = [csvHeaders, ...csvRows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(','))
+      .map((row) => row.map((cell: any) => `"${cell}"`).join(','))
       .join('\n')
 
     return new NextResponse(csvContent, {
