@@ -27,7 +27,7 @@ export default function Home() {
                     </h1>
 
                     <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-                        Experience cricket like never before. Professional-grade turf, night-vision lighting, and premium amenities driven by data-backed excellence.
+                        Experience cricket like never before. Professional-grade turf, night-vision lighting, and premium amenities.
                     </p>
 
                     <div className="flex justify-center gap-4 pt-4">
@@ -42,8 +42,8 @@ export default function Home() {
                 {/* Feature Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                     {/* Venue Booking Card */}
-                    <Card className="glass-card hover:bg-white/5 transition-all duration-300 group border-white/5">
-                        <CardHeader>
+                    <Card className="glass-card flex flex-col h-full hover:bg-white/5 transition-all duration-300 group border-white/5">
+                        <CardHeader className="flex-1">
                             <div className="mb-4 w-12 h-12 rounded-lg bg-brand-purple/20 flex items-center justify-center group-hover:bg-brand-purple/30 transition-colors">
                                 <CalendarDays className="h-6 w-6 text-brand-purple" />
                             </div>
@@ -62,14 +62,14 @@ export default function Home() {
                     </Card>
 
                     {/* User Features Card */}
-                    <Card className="glass-card hover:bg-white/5 transition-all duration-300 group border-white/5">
-                        <CardHeader>
+                    <Card className="glass-card flex flex-col h-full hover:bg-white/5 transition-all duration-300 group border-white/5">
+                        <CardHeader className="flex-1">
                             <div className="mb-4 w-12 h-12 rounded-lg bg-brand-pink/20 flex items-center justify-center group-hover:bg-brand-pink/30 transition-colors">
                                 <User className="h-6 w-6 text-brand-pink" />
                             </div>
                             <CardTitle className="text-xl text-white">Player Profile</CardTitle>
                             <CardDescription className="text-zinc-400">
-                                Track your games, manage bookings, and join the community.
+                                Track your games and manage bookings
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -82,8 +82,8 @@ export default function Home() {
                     </Card>
 
                     {/* Owner Dashboard Card */}
-                    <Card className="glass-card hover:bg-white/5 transition-all duration-300 group border-white/5">
-                        <CardHeader>
+                    <Card className="glass-card flex flex-col h-full hover:bg-white/5 transition-all duration-300 group border-white/5">
+                        <CardHeader className="flex-1">
                             <div className="mb-4 w-12 h-12 rounded-lg bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/30 transition-colors">
                                 <LayoutDashboard className="h-6 w-6 text-indigo-400" />
                             </div>

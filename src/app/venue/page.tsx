@@ -11,7 +11,8 @@ import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import { cn } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from '@/components/ui/use-toast'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -112,8 +113,46 @@ export default function VenuePage() {
     )
   }
 
-  const handleProceed = () => {
+  const searchParams = useSearchParams()
+  const rescheduleBookingId = searchParams.get('reschedule')
+
+  const handleProceed = async () => {
     const selectedObjects = slots.filter(s => selectedSlots.includes(s.id))
+
+    if (rescheduleBookingId) {
+      setLoading(true)
+      try {
+        const response = await fetch('/api/bookings/reschedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookingId: rescheduleBookingId,
+            date: selectedDate?.toISOString().split('T')[0],
+            slots: selectedObjects
+          })
+        })
+
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to reschedule')
+
+        toast({
+          title: 'Rescheduled!',
+          description: 'Your booking has been moved successfully.',
+        })
+        router.push('/dashboard')
+        router.refresh()
+      } catch (error: any) {
+        toast({
+          title: 'Error',
+          description: error.message,
+          variant: 'destructive'
+        })
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     const slotsParam = encodeURIComponent(JSON.stringify(selectedObjects))
     const dateParam = selectedDate?.toISOString()
     router.push(`/checkout?date=${dateParam}&slots=${slotsParam}`)
@@ -192,7 +231,7 @@ export default function VenuePage() {
                     <span className="flex items-center"><div className="w-3 h-3 rounded-full bg-brand-purple mr-2"></div> Selected</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center"><div className="w-3 h-3 rounded-full bg-white/5 opacity-50 mr-2"></div> Booked</span>
+                    <span className="flex items-center"><div className="w-3 h-3 rounded-full bg-green-500/30 border border-green-500/60 mr-2"></div> Booked</span>
                     <span className="flex items-center"><div className="w-3 h-3 rounded-full border border-brand-pink/50 mr-2"></div> Peak Hrs</span>
                   </div>
                 </div>
@@ -204,14 +243,39 @@ export default function VenuePage() {
           <div className="lg:col-span-2">
             <Card className="glass-card border-white/5 h-full">
               <CardHeader>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center sm:items-center flex-wrap gap-4">
                   <div>
                     <CardTitle className="text-white">Available Slots</CardTitle>
                     <CardDescription className="text-zinc-400">
                       {selectedDate ? dayjs(selectedDate).format('dddd, MMMM D, YYYY') : 'Select a date'}
                     </CardDescription>
                   </div>
-                  {loading && <Loader2 className="h-5 w-5 animate-spin text-brand-purple" />}
+
+                  <div className="flex items-center gap-4 ml-auto">
+                    {loading && <Loader2 className="h-5 w-5 animate-spin text-brand-purple" />}
+
+                    {selectedSlots.length > 0 && (
+                      <div className="flex items-center gap-6 bg-white/5 border border-white/10 p-2 px-6 rounded-xl animate-in fade-in zoom-in-95 duration-300 shadow-xl backdrop-blur-sm">
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Total</div>
+                            <div className="text-xl font-bold text-white leading-none">₹{totalAmount}</div>
+                          </div>
+                          <div className="h-8 w-[1px] bg-white/10 hidden sm:block" />
+                          <div className="hidden sm:block text-right">
+                            <div className="text-[10px] text-brand-purple uppercase font-bold tracking-wider">Selected</div>
+                            <div className="text-xl font-bold text-white leading-none">{selectedSlots.length}</div>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handleProceed}
+                          className="bg-gradient-to-r from-brand-purple to-brand-pink hover:opacity-90 text-white shadow-lg h-10 px-6 font-bold"
+                        >
+                          {rescheduleBookingId ? 'Reschedule' : 'Proceed'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -231,7 +295,7 @@ export default function VenuePage() {
                             isSelected
                               ? "bg-brand-purple hover:bg-brand-purple/90 border-brand-purple text-white shadow-[0_0_15px_rgba(109,40,217,0.5)]"
                               : "bg-white/5 hover:bg-white/10 border-white/5 text-zinc-300",
-                            isBooked && "opacity-30 cursor-not-allowed bg-transparent border-white/5 decoration-slice pointer-events-none",
+                            isBooked && "bg-green-500/30 border-green-500/60 text-green-300 cursor-not-allowed pointer-events-none",
                             isPeak && !isSelected && !isBooked && "border-brand-pink/30"
                           )}
                           onClick={() => !isBooked && toggleSlot(slot.id)}
@@ -241,7 +305,7 @@ export default function VenuePage() {
                           <span className={cn(
                             "text-xs mt-1",
                             isSelected ? "text-white/90" : (isPeak ? "text-brand-pink" : "text-zinc-500"),
-                            isBooked && "text-zinc-600"
+                            isBooked && "text-green-500 font-bold"
                           )}>
                             {isBooked ? 'Booked' : `₹${slot.price}`}
                           </span>
@@ -253,30 +317,6 @@ export default function VenuePage() {
                   <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
                     <Info className="w-12 h-12 mb-4 opacity-50" />
                     <p>Please select a date to view available slots</p>
-                  </div>
-                )}
-
-                {/* Booking Summary Floating Bar */}
-                {selectedSlots.length > 0 && (
-                  <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[90%] max-w-2xl bg-zinc-900/90 backdrop-blur-xl border border-brand-purple/50 p-4 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50 animate-in slide-in-from-bottom-5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-zinc-400 text-xs uppercase tracking-wider">Total Amount</span>
-                        <span className="text-2xl font-bold text-white">₹{totalAmount}</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="hidden sm:block text-right">
-                          <span className="text-brand-purple font-medium">{selectedSlots.length} Slots</span>
-                          <div className="text-xs text-zinc-500">Selected</div>
-                        </div>
-                        <Button
-                          onClick={handleProceed}
-                          className="bg-gradient-to-r from-brand-purple to-brand-pink hover:opacity-90 text-white px-8 h-12 shadow-lg"
-                        >
-                          Proceed
-                        </Button>
-                      </div>
-                    </div>
                   </div>
                 )}
               </CardContent>

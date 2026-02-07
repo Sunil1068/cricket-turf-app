@@ -22,7 +22,7 @@ export function Navbar() {
         <nav className="border-b border-white/10 bg-brand-dark/50 backdrop-blur-xl sticky top-0 z-50">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 <Link href="/" className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
-                    TURF.BADMINTON
+                    TURF CRICKET
                 </Link>
 
                 {/* Desktop Navigation */}

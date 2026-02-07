@@ -10,6 +10,7 @@ import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import Link from 'next/link'
+import { BookingActions } from '@/components/BookingActions'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -65,7 +66,7 @@ export default async function DashboardPage() {
                     </Card>
                 ) : (
                     <div className="space-y-4">
-                        {bookings.map((booking) => (
+                        {bookings.map((booking: any) => (
                             <Card key={booking.id} className="glass-card border-white/5 overflow-hidden">
                                 <CardContent className="p-0">
                                     <div className="flex flex-col md:flex-row">
@@ -101,27 +102,7 @@ export default async function DashboardPage() {
                                             </div>
                                         </div>
 
-                                        <div className="bg-white/5 border-t md:border-t-0 md:border-l border-white/5 p-4 flex md:flex-col gap-2 justify-center min-w-[160px]">
-                                            {booking.status === 'CONFIRMED' && (
-                                                <>
-                                                    <Button
-                                                        variant="ghost"
-                                                        className="w-full text-zinc-400 hover:text-white hover:bg-white/5"
-                                                    // We'll implement client-side handling later or link to a page
-                                                    >
-                                                        <RefreshCw className="w-4 h-4 mr-2" />
-                                                        Reschedule
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        className="w-full text-red-400 hover:text-red-300 hover:bg-red-950/20"
-                                                    >
-                                                        <XCircle className="w-4 h-4 mr-2" />
-                                                        Cancel
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
+                                        <BookingActions bookingId={booking.id} bookingDate={booking.date.toISOString()} />
                                     </div>
                                 </CardContent>
                             </Card>
