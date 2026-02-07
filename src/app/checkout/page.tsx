@@ -1,6 +1,7 @@
 
 'use client'
 
+import { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
@@ -9,7 +10,7 @@ import { toast } from '@/components/ui/use-toast'
 import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react'
 import dayjs from 'dayjs'
 
-export default function CheckoutPage() {
+function CheckoutContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const [loading, setLoading] = useState(false)
@@ -131,5 +132,17 @@ export default function CheckoutPage() {
                 </Card>
             </div>
         </div>
+    )
+}
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-brand-dark flex items-center justify-center text-white">
+                <Loader2 className="h-8 w-8 animate-spin text-brand-purple" />
+            </div>
+        }>
+            <CheckoutContent />
+        </Suspense>
     )
 }

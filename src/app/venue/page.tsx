@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/components/ui/use-toast'
 
+import { Suspense } from 'react'
+
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
@@ -40,7 +42,7 @@ const generateSlots = (date: Date) => {
   return slots
 }
 
-export default function VenuePage() {
+function VenueContent() {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
@@ -325,5 +327,17 @@ export default function VenuePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function VenuePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-brand-dark flex items-center justify-center text-white">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-purple" />
+      </div>
+    }>
+      <VenueContent />
+    </Suspense>
   )
 }
