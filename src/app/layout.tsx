@@ -10,8 +10,11 @@ import { Toaster } from '@/components/ui/toaster'
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
-  title: 'Cricket Turf Booking',
-  description: 'Book your cricket turf slots easily',
+  title: 'Turf Cricket | Premium Booking',
+  description: 'Book your professional cricket turf slots easily',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
