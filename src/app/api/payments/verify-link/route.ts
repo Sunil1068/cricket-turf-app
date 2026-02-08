@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams
@@ -39,9 +41,9 @@ export async function GET(request: NextRequest) {
         // We stored the linkage in the payment record during creation.
         // The razorpay_payment_link_id matches our saved razorpayOrderId.
 
-        const payment = await prisma.payment.findFirst({
+        const payment = await (prisma as any).payment.findFirst({
             where: { razorpayOrderId: razorpay_payment_link_id },
-            include: { bookings: true }
+            include: { bookings: true, booking: true } // Try both to be safe against stale client generator
         })
 
         if (!payment) {
@@ -49,8 +51,10 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(new URL('/dashboard?error=payment_record_not_found', request.url))
         }
 
+        const linkedBookings = payment.bookings || (payment as any).booking || []
+
         if (payment.status !== 'SUCCESS') {
-            await prisma.$transaction(async (tx) => {
+            await prisma.$transaction(async (tx: any) => {
                 // Update payment to SUCCESS
                 await tx.payment.update({
                     where: { id: payment.id },
@@ -61,15 +65,17 @@ export async function GET(request: NextRequest) {
                     }
                 })
 
-                // Update all themed bookings to CONFIRMED
-                await tx.booking.updateMany({
-                    where: {
-                        id: { in: payment.bookings.map(b => b.id) }
-                    },
-                    data: {
-                        status: 'CONFIRMED'
-                    }
-                })
+                // Update all linked bookings to CONFIRMED
+                if (linkedBookings.length > 0) {
+                    await tx.booking.updateMany({
+                        where: {
+                            id: { in: linkedBookings.map((b: any) => b.id) }
+                        },
+                        data: {
+                            status: 'CONFIRMED'
+                        }
+                    })
+                }
             })
         }
 
