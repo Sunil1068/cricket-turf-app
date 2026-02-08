@@ -36,9 +36,21 @@ export async function GET(request: NextRequest) {
             SELECT schema_name FROM information_schema.schemata
         `)
 
-        // Initialize, Force Verify, or Clean if requested
+        // Initialize, Force Verify, Clean, or Test Email if requested
         let initStatus = 'not_requested'
         const { searchParams } = new URL(request.url)
+
+        // Test email sending
+        if (searchParams.get('test_email')) {
+            const testTarget = searchParams.get('test_email') as string
+            try {
+                const { sendVerificationEmail } = await import('@/lib/email')
+                const res = await sendVerificationEmail(testTarget, 'test-token-123')
+                initStatus = res.success ? `Success: Test email sent to ${testTarget}` : `Error sending: ${res.error}`
+            } catch (e: any) {
+                initStatus = `Critical Error sending: ${e.message}`
+            }
+        }
 
         // Manual cleanup (Destructive!)
         if (searchParams.get('clean') === 'true') {
@@ -196,7 +208,11 @@ export async function GET(request: NextRequest) {
             create_test_table: createTestTable,
             init_status: initStatus,
             all_schemas: schemasRes.rows.map(r => r.schema_name),
-            url_sanitized: dbUrl.replace(/:[^:@]+@/, ':***@') // Sanitize password
+            env_vars: {
+                RESEND_API_KEY: process.env.RESEND_API_KEY ? `set (starts with ${process.env.RESEND_API_KEY.substring(0, 5)}...)` : 'NOT SET',
+                NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'NOT SET (defaulting to localhost)',
+                DATABASE_URL: dbUrl.replace(/:[^:@]+@/, ':***@')
+            }
         })
     } catch (error: any) {
         return NextResponse.json({
