@@ -8,7 +8,7 @@ export async function sendVerificationEmail(email: string, token: string) {
         }
 
         const resend = new Resend(apiKey)
-        const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+        const baseUrl = (process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/$/, '')
 
         if (process.env.NODE_ENV === 'production' && baseUrl.includes('localhost')) {
             console.warn('⚠️ WARNING: NEXTAUTH_URL is set to localhost in production. Verification links will be broken!')
