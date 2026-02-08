@@ -28,13 +28,14 @@ export async function sendVerificationEmail(email: string, token: string) {
         })
 
         if (result.error) {
-            throw result.error
+            console.error('Resend API error:', result.error)
+            return { success: false, error: result.error.message || JSON.stringify(result.error) }
         }
 
-        console.log(`Verification email sent to ${email}`)
+        console.log(`Verification email successfully sent to ${email}`)
         return { success: true }
     } catch (error: any) {
-        console.error('Failed to send verification email:', error)
-        return { success: false, error: error.message || error }
+        console.error('Critical failure in sendVerificationEmail:', error)
+        return { success: false, error: error.message || 'Unknown internal error' }
     }
 }
