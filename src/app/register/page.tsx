@@ -56,9 +56,9 @@ export default function RegisterPage() {
       if (response.ok) {
         toast({
           title: 'Success',
-          description: 'Account created successfully',
+          description: 'Account created successfully. Please verify your email.',
         })
-        router.push('/login')
+        router.push('/verify-email')
       } else {
         const error = await response.json()
         toast({
