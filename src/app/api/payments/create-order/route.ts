@@ -44,20 +44,10 @@ export async function POST(request: NextRequest) {
 
     const totalAmountPaise = bookings.reduce((sum: number, b: any) => sum + b.amountPaise, 0)
 
-    // Create Razorpay order
-    const options = {
-      amount: totalAmountPaise,
-      currency: 'INR',
-      receipt: `multi_booking_${bookingIds[0]}`,
-    }
-
-    const order = await razorpay.orders.create(options)
-
-    // Create payment record and link to bookings
+    // 1. Create payment record first to get an ID
     const payment = await prisma.payment.create({
       data: {
         provider: 'razorpay',
-        razorpayOrderId: order.id,
         amountPaise: totalAmountPaise,
         currency: 'INR',
         status: 'PENDING',
@@ -67,17 +57,50 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      paymentId: payment.id,
-      keyId: process.env.RAZORPAY_KEY_ID
+    const baseUrl = (process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/$/, '')
+
+    // 2. Create Razorpay Payment Link
+    const paymentLinkRequest = {
+      amount: totalAmountPaise,
+      currency: 'INR',
+      accept_partial: false,
+      description: `Turf Booking for ${bookingIds.length} slot(s)`,
+      customer: {
+        name: session.user.name || 'User',
+        email: session.user.email,
+        contact: '', // Optional: can add phone if available in session
+      },
+      notify: {
+        sms: false,
+        email: true,
+      },
+      reminder_enable: true,
+      notes: {
+        paymentId: payment.id,
+        bookingIds: bookingIds.join(','),
+      },
+      callback_url: `${baseUrl}/api/payments/verify-link`,
+      callback_method: 'get' as const,
+    }
+
+    const paymentLink = await razorpay.paymentLink.create(paymentLinkRequest)
+
+    // 3. Update payment record with Razorpay Order/Link details
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        razorpayOrderId: paymentLink.id, // Storing link ID as order ID for reference
+      }
     })
-  } catch (error) {
+
+    return NextResponse.json({
+      paymentLinkUrl: paymentLink.short_url,
+      paymentId: payment.id
+    })
+  } catch (error: any) {
     console.error('Order creation error:', error)
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: error.message || 'Internal server error' },
       { status: 500 }
     )
   }

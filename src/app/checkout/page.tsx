@@ -29,16 +29,6 @@ function CheckoutContent() {
     const slots = slotsParam ? JSON.parse(decodeURIComponent(slotsParam)) : []
     const totalAmount = slots.reduce((sum: number, slot: any) => sum + slot.price, 0)
 
-    const loadRazorpay = () => {
-        return new Promise((resolve) => {
-            const script = document.createElement('script')
-            script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-            script.onload = () => resolve(true)
-            script.onerror = () => resolve(false)
-            document.body.appendChild(script)
-        })
-    }
-
     const handleBooking = async () => {
         if (!session) {
             toast({
@@ -52,13 +42,7 @@ function CheckoutContent() {
 
         setLoading(true)
         try {
-            // 1. Load Razorpay script
-            const res = await loadRazorpay()
-            if (!res) {
-                throw new Error('Razorpay SDK failed to load')
-            }
-
-            // 2. Create pending bookings
+            // 1. Create pending bookings
             const bookingResponse = await fetch('/api/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -76,7 +60,7 @@ function CheckoutContent() {
 
             const { bookingIds } = bookingData
 
-            // 3. Create Razorpay order
+            // 2. Create Razorpay Payment Link
             const orderResponse = await fetch('/api/payments/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -88,55 +72,12 @@ function CheckoutContent() {
                 throw new Error(orderData.message || 'Failed to create payment order')
             }
 
-            // 4. Open Razorpay Modal
-            const options = {
-                key: orderData.keyId,
-                amount: orderData.amount,
-                currency: orderData.currency,
-                name: 'TURF CRICKET',
-                description: `Booking for ${dayjs(dateStr).format('MMM D, YYYY')}`,
-                order_id: orderData.orderId,
-                handler: async function (response: any) {
-                    try {
-                        const verifyResponse = await fetch('/api/payments/verify', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                ...response,
-                                paymentId: orderData.paymentId
-                            })
-                        })
-
-                        const verifyData = await verifyResponse.json()
-                        if (verifyResponse.ok) {
-                            toast({
-                                title: 'Booking Confirmed!',
-                                description: 'Your slots have been successfully booked.',
-                            })
-                            router.push('/dashboard')
-                            router.refresh()
-                        } else {
-                            throw new Error(verifyData.message || 'Payment verification failed')
-                        }
-                    } catch (err: any) {
-                        toast({
-                            title: 'Verification Failed',
-                            description: err.message,
-                            variant: 'destructive',
-                        })
-                    }
-                },
-                prefill: {
-                    name: session.user.name,
-                    email: session.user.email,
-                },
-                theme: {
-                    color: '#9333ea',
-                }
+            // 3. Redirect to Razorpay Hosted Page
+            if (orderData.paymentLinkUrl) {
+                window.location.href = orderData.paymentLinkUrl
+            } else {
+                throw new Error('Payment link was not generated')
             }
-
-            const paymentObject = new window.Razorpay(options)
-            paymentObject.open()
 
         } catch (error: any) {
             toast({
