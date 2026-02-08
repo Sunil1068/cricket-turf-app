@@ -41,9 +41,9 @@ export async function GET(request: NextRequest) {
         // We stored the linkage in the payment record during creation.
         // The razorpay_payment_link_id matches our saved razorpayOrderId.
 
-        const payment = await (prisma as any).payment.findFirst({
+        const payment = await prisma.payment.findFirst({
             where: { razorpayOrderId: razorpay_payment_link_id },
-            include: { bookings: true, booking: true } // Try both to be safe against stale client generator
+            include: { bookings: true }
         })
 
         if (!payment) {
@@ -51,10 +51,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(new URL('/dashboard?error=payment_record_not_found', request.url))
         }
 
-        const linkedBookings = payment.bookings || (payment as any).booking || []
-
         if (payment.status !== 'SUCCESS') {
-            await prisma.$transaction(async (tx: any) => {
+            await prisma.$transaction(async (tx) => {
                 // Update payment to SUCCESS
                 await tx.payment.update({
                     where: { id: payment.id },
@@ -66,10 +64,10 @@ export async function GET(request: NextRequest) {
                 })
 
                 // Update all linked bookings to CONFIRMED
-                if (linkedBookings.length > 0) {
+                if (payment.bookings && payment.bookings.length > 0) {
                     await tx.booking.updateMany({
                         where: {
-                            id: { in: linkedBookings.map((b: any) => b.id) }
+                            id: { in: payment.bookings.map((b: any) => b.id) }
                         },
                         data: {
                             status: 'CONFIRMED'

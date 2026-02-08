@@ -45,13 +45,13 @@ export async function POST(request: NextRequest) {
     const totalAmountPaise = bookings.reduce((sum: number, b: any) => sum + b.amountPaise, 0)
 
     // 1. Create payment record first to get an ID
-    const payment = await (prisma as any).payment.create({
+    const payment = await prisma.payment.create({
       data: {
         provider: 'razorpay',
         amountPaise: totalAmountPaise,
         currency: 'INR',
         status: 'PENDING',
-        booking: { // Use 'booking' as suggested by lint
+        bookings: {
           connect: bookingIds.map(id => ({ id }))
         }
       },
