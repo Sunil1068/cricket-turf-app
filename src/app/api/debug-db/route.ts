@@ -206,6 +206,13 @@ export async function GET(request: NextRequest) {
             LIMIT 10
         `)
 
+        // Check columns of turf_bookings
+        const bookingColumns = await client.query(`
+            SELECT column_name, data_type, udt_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'turf_bookings'
+        `)
+
         await client.end()
 
         return NextResponse.json({
@@ -221,6 +228,7 @@ export async function GET(request: NextRequest) {
             turf_users_count: turfUsersCount,
             recent_users: recentUsers.rows,
             public_tables: tablesResAfter.rows.map(r => r.table_name),
+            booking_columns: bookingColumns.rows,
             env_vars: {
                 RESEND_API_KEY: process.env.RESEND_API_KEY ? `set (starts with ${process.env.RESEND_API_KEY.substring(0, 5)}...)` : 'NOT SET',
                 NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'NOT SET (defaulting to localhost)',
