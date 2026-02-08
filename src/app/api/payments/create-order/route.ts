@@ -9,14 +9,17 @@ const createOrderSchema = z.object({
   bookingIds: z.array(z.string()),
 })
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-})
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
+
+    // Move initialization inside to ensure runtime env vars are picked up
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID!,
+      key_secret: process.env.RAZORPAY_KEY_SECRET!,
+    })
 
     if (!session?.user?.email) {
       return NextResponse.json(
