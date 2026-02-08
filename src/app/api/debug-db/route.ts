@@ -198,20 +198,28 @@ export async function GET(request: NextRequest) {
         await client.end()
 
         return NextResponse.json({
-            database: metaRes.rows[0].current_database,
-            schema: metaRes.rows[0].current_schema,
-            user: metaRes.rows[0].current_user,
-            search_path: pathRes.rows[0].search_path,
-            public_tables: tablesResAfter.rows.map(r => r.table_name),
+            status: "ready",
+            quick_actions: {
+                clear_database: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?clean=true`,
+                initialize_schema: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?init=true`,
+                manual_verify_user: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?verify=USER_EMAIL`,
+                test_email_send: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?test_email=USER_EMAIL`
+            },
+            init_status: initStatus,
             turf_users_count: turfUsersCount,
             recent_users: recentUsers.rows,
-            create_test_table: createTestTable,
-            init_status: initStatus,
-            all_schemas: schemasRes.rows.map(r => r.schema_name),
+            public_tables: tablesResAfter.rows.map(r => r.table_name),
             env_vars: {
                 RESEND_API_KEY: process.env.RESEND_API_KEY ? `set (starts with ${process.env.RESEND_API_KEY.substring(0, 5)}...)` : 'NOT SET',
                 NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'NOT SET (defaulting to localhost)',
-                DATABASE_URL: dbUrl.replace(/:[^:@]+@/, ':***@')
+                DATABASE_URL: dbUrl.replace(/:[^:@]+@/, ':***@'),
+                NODE_ENV: process.env.NODE_ENV
+            },
+            meta: {
+                database: metaRes.rows[0].current_database,
+                schema: metaRes.rows[0].current_schema,
+                user: metaRes.rows[0].current_user,
+                all_schemas: schemasRes.rows.map(r => r.schema_name),
             }
         })
     } catch (error: any) {

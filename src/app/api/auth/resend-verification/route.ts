@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         if (!emailResult.success) {
             console.error('Failed to resend email:', emailResult.error)
             return NextResponse.json({
-                message: 'Failed to send email. Check server logs.',
+                message: `Email failed: ${emailResult.error || 'Unknown provider error'}`,
                 error: emailResult.error
             }, { status: 500 })
         }
