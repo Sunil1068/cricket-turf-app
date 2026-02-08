@@ -28,6 +28,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { bookingIds } = createOrderSchema.parse(body)
 
+    if (!bookingIds || bookingIds.length === 0) {
+      return NextResponse.json({ message: 'No booking IDs provided' }, { status: 400 })
+    }
+
+    // 1. Verify environment variables
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return NextResponse.json({
+        message: 'Razorpay configuration error',
+        error: 'Missing RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET on server'
+      }, { status: 500 })
+    }
+
+    // 2. Fetch bookings
     const bookings = await prisma.booking.findMany({
       where: {
         id: { in: bookingIds },
@@ -35,70 +48,93 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    if (bookings.length === 0) {
+      return NextResponse.json({ message: 'No bookings found', error: `Could not find bookings for IDs: ${bookingIds.join(', ')}` }, { status: 404 })
+    }
+
     if (bookings.length !== bookingIds.length) {
-      return NextResponse.json(
-        { message: 'Some bookings not found or unauthorized' },
-        { status: 404 }
-      )
+      return NextResponse.json({
+        message: 'Some bookings not found',
+        error: `Found ${bookings.length} out of ${bookingIds.length} requested bookings.`
+      }, { status: 404 })
     }
 
     const totalAmountPaise = bookings.reduce((sum: number, b: any) => sum + b.amountPaise, 0)
 
-    // 1. Create payment record first to get an ID
-    const payment = await prisma.payment.create({
-      data: {
-        provider: 'razorpay',
-        amountPaise: totalAmountPaise,
-        currency: 'INR',
-        status: 'PENDING',
-        bookings: {
-          connect: bookingIds.map(id => ({ id }))
-        }
-      },
-    })
+    // 3. Create payment record
+    let payment;
+    try {
+      payment = await prisma.payment.create({
+        data: {
+          provider: 'razorpay',
+          amountPaise: totalAmountPaise,
+          currency: 'INR',
+          status: 'PENDING',
+          bookings: {
+            connect: bookingIds.map(id => ({ id }))
+          }
+        },
+      })
+    } catch (dbError: any) {
+      console.error('Database error in payment creation:', dbError)
+      return NextResponse.json({
+        message: 'Database transaction failed',
+        error: dbError.message,
+        code: dbError.code
+      }, { status: 500 })
+    }
 
     const baseUrl = (process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/$/, '')
 
-    // 2. Create Razorpay Payment Link
-    const paymentLinkRequest = {
-      amount: totalAmountPaise,
-      currency: 'INR',
-      accept_partial: false,
-      description: `Turf Booking for ${bookingIds.length} slot(s)`,
-      customer: {
-        name: session.user.name || 'User',
-        email: session.user.email,
-        contact: '', // Optional: can add phone if available in session
-      },
-      notify: {
-        sms: false,
-        email: true,
-      },
-      reminder_enable: true,
-      notes: {
-        paymentId: payment.id,
-        bookingIds: bookingIds.join(','),
-      },
-      callback_url: `${baseUrl}/api/payments/verify-link`,
-      callback_method: 'get' as const,
+    // 4. Create Razorpay Payment Link
+    try {
+      const paymentLinkRequest = {
+        amount: totalAmountPaise,
+        currency: 'INR',
+        accept_partial: false,
+        description: `Turf Booking for ${bookingIds.length} slot(s)`,
+        customer: {
+          name: session.user.name || 'User',
+          email: session.user.email,
+          contact: '',
+        },
+        notify: {
+          sms: false,
+          email: true,
+        },
+        reminder_enable: true,
+        notes: {
+          paymentId: payment.id,
+          bookingIds: bookingIds.join(','),
+        },
+        callback_url: `${baseUrl}/api/payments/verify-link`,
+        callback_method: 'get' as const,
+      }
+
+      const paymentLink = await razorpay.paymentLink.create(paymentLinkRequest)
+
+      // 5. Update payment record with Razorpay Link details
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          razorpayOrderId: paymentLink.id,
+        }
+      })
+
+      return NextResponse.json({
+        paymentLinkUrl: paymentLink.short_url,
+        paymentId: payment.id
+      })
+    } catch (rzpError: any) {
+      console.error('Razorpay API error:', rzpError)
+      return NextResponse.json({
+        message: 'Razorpay payment link creation failed',
+        error: rzpError.description || rzpError.message || JSON.stringify(rzpError)
+      }, { status: 500 })
     }
 
-    const paymentLink = await razorpay.paymentLink.create(paymentLinkRequest)
-
-    // 3. Update payment record with Razorpay Order/Link details
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        razorpayOrderId: paymentLink.id, // Storing link ID as order ID for reference
-      }
-    })
-
-    return NextResponse.json({
-      paymentLinkUrl: paymentLink.short_url,
-      paymentId: payment.id
-    })
   } catch (error: any) {
-    console.error('Order creation error:', error)
+    console.error('Global order creation error:', error)
     return NextResponse.json(
       {
         message: 'Internal server error',
