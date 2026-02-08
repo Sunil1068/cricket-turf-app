@@ -130,9 +130,22 @@ export async function POST(request: NextRequest) {
       })
     } catch (rzpError: any) {
       console.error('Razorpay API error:', rzpError)
+
+      // Diagnostic info (Safe: only prefix and length)
+      const keyId = process.env.RAZORPAY_KEY_ID || ''
+      const keySecret = process.env.RAZORPAY_KEY_SECRET || ''
+      const diagnostics = {
+        id_prefix: keyId.substring(0, 8),
+        id_length: keyId.length,
+        secret_prefix: keySecret.substring(0, 4) + '****',
+        secret_length: keySecret.length,
+        message: 'Check if keys are swapped or contain extra spaces/quotes in Vercel settings.'
+      }
+
       return NextResponse.json({
-        message: 'Razorpay payment link creation failed',
-        error: rzpError.description || rzpError.message || JSON.stringify(rzpError)
+        message: 'Razorpay authentication or setup failed',
+        error: rzpError.description || rzpError.message || JSON.stringify(rzpError),
+        debug_info: diagnostics
       }, { status: 500 })
     }
 
