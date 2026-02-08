@@ -106,7 +106,9 @@ async function main() {
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name = 'turf_users' AND column_name = 'role' AND data_type = 'text'
                 ) THEN
+                    ALTER TABLE turf_users ALTER COLUMN role DROP DEFAULT;
                     ALTER TABLE turf_users ALTER COLUMN role TYPE "Role" USING role::"Role";
+                    ALTER TABLE turf_users ALTER COLUMN role SET DEFAULT 'USER'::"Role";
                 END IF;
 
                 -- 2. turf_bookings.status
@@ -114,7 +116,9 @@ async function main() {
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name = 'turf_bookings' AND column_name = 'status' AND data_type = 'text'
                 ) THEN
+                    ALTER TABLE turf_bookings ALTER COLUMN status DROP DEFAULT;
                     ALTER TABLE turf_bookings ALTER COLUMN status TYPE "BookingStatus" USING status::"BookingStatus";
+                    ALTER TABLE turf_bookings ALTER COLUMN status SET DEFAULT 'PENDING'::"BookingStatus";
                 END IF;
 
                 -- 3. turf_payments.status
@@ -122,7 +126,9 @@ async function main() {
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name = 'turf_payments' AND column_name = 'status' AND data_type = 'text'
                 ) THEN
+                    ALTER TABLE turf_payments ALTER COLUMN status DROP DEFAULT;
                     ALTER TABLE turf_payments ALTER COLUMN status TYPE "PaymentStatus" USING status::"PaymentStatus";
+                    ALTER TABLE turf_payments ALTER COLUMN status SET DEFAULT 'PENDING'::"PaymentStatus";
                 END IF;
             END $$;
         `);
