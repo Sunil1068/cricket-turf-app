@@ -51,11 +51,23 @@ export async function POST(request: Request) {
                 const startTimeUtc = startTime.toDate()
                 const endTimeUtc = startTime.add(1, 'hour').toDate()
 
+                const PENDING_TIMEOUT_MINS = 10
+                const timeoutThreshold = dayjs().subtract(PENDING_TIMEOUT_MINS, 'minutes').toDate()
+
                 // Check if already booked
-                const existing = await tx.booking.findFirst({
+                const existing = await (tx as any).booking.findFirst({
                     where: {
                         startTimeUtc: startTimeUtc,
-                        status: { in: ['CONFIRMED', 'PENDING'] }
+                        OR: [
+                            { status: 'CONFIRMED' },
+                            {
+                                status: 'PENDING',
+                                createdAt: { gte: timeoutThreshold },
+                                // If the hold is held by someone ELSE, block it.
+                                // If it's the SAME user, allow them to create a new one (retry).
+                                userId: { not: (session.user as any).id }
+                            }
+                        ]
                     }
                 })
 
@@ -63,9 +75,9 @@ export async function POST(request: Request) {
                     throw new Error(`Slot ${slot.time} is no longer available`)
                 }
 
-                const booking = await tx.booking.create({
+                const booking = await (tx as any).booking.create({
                     data: {
-                        userId: session.user.id,
+                        userId: (session.user as any).id,
                         date: bookingDate,
                         startTimeUtc: startTimeUtc,
                         endTimeUtc: endTimeUtc,
@@ -81,8 +93,8 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
             success: true,
-            bookingIds: result.map(b => b.id),
-            totalAmountPaise: result.reduce((sum, b) => sum + b.amountPaise, 0)
+            bookingIds: result.map((b: any) => b.id),
+            totalAmountPaise: result.reduce((sum: number, b: any) => sum + b.amountPaise, 0)
         })
 
     } catch (error: any) {
