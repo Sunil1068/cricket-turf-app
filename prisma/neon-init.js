@@ -97,6 +97,34 @@ async function main() {
                     ALTER TABLE turf_bookings ADD CONSTRAINT fk_turf_bookings_payment FOREIGN KEY ("paymentId") REFERENCES turf_payments(id);
                 END IF;
             END $$;
+
+            -- Self-healing Type Migration: Convert text columns to Enums if they were created incorrectly
+            DO $$
+            BEGIN
+                -- 1. turf_users.role
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'turf_users' AND column_name = 'role' AND data_type = 'text'
+                ) THEN
+                    ALTER TABLE turf_users ALTER COLUMN role TYPE "Role" USING role::"Role";
+                END IF;
+
+                -- 2. turf_bookings.status
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'turf_bookings' AND column_name = 'status' AND data_type = 'text'
+                ) THEN
+                    ALTER TABLE turf_bookings ALTER COLUMN status TYPE "BookingStatus" USING status::"BookingStatus";
+                END IF;
+
+                -- 3. turf_payments.status
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'turf_payments' AND column_name = 'status' AND data_type = 'text'
+                ) THEN
+                    ALTER TABLE turf_payments ALTER COLUMN status TYPE "PaymentStatus" USING status::"PaymentStatus";
+                END IF;
+            END $$;
         `);
         console.log('Tables created successfully.');
 
