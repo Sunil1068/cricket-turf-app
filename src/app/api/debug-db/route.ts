@@ -36,9 +36,24 @@ export async function GET(request: NextRequest) {
             SELECT schema_name FROM information_schema.schemata
         `)
 
-        // Initialize or Force Verify if requested
+        // Initialize, Force Verify, or Clean if requested
         let initStatus = 'not_requested'
         const { searchParams } = new URL(request.url)
+
+        // Manual cleanup (Destructive!)
+        if (searchParams.get('clean') === 'true') {
+            try {
+                // Delete everything in order of dependency
+                await client.query('DELETE FROM turf_bookings')
+                await client.query('DELETE FROM turf_payments')
+                await client.query('DELETE FROM turf_sessions')
+                await client.query('DELETE FROM turf_accounts')
+                await client.query('DELETE FROM turf_users')
+                initStatus = 'Success: Database cleaned (all users and bookings deleted)'
+            } catch (e: any) {
+                initStatus = `Error Cleaning: ${e.message}`
+            }
+        }
 
         // Manual verification bypass
         if (searchParams.get('verify')) {
