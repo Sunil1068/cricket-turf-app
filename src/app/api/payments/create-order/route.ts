@@ -100,7 +100,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Order creation error:', error)
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      {
+        message: 'Internal server error',
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     )
   }

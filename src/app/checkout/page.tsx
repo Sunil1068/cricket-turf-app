@@ -69,7 +69,7 @@ function CheckoutContent() {
 
             const orderData = await orderResponse.json()
             if (!orderResponse.ok) {
-                throw new Error(orderData.message || 'Failed to create payment order')
+                throw new Error(orderData.error || orderData.message || 'Failed to create payment order')
             }
 
             // 3. Redirect to Razorpay Hosted Page
