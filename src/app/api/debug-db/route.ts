@@ -67,6 +67,17 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        // Selective user deletion
+        if (searchParams.get('delete_user')) {
+            const emailToDelete = searchParams.get('delete_user')
+            try {
+                await client.query('DELETE FROM turf_users WHERE email = $1', [emailToDelete])
+                initStatus = `Success: Deleted user ${emailToDelete}`
+            } catch (e: any) {
+                initStatus = `Error Deleting User: ${e.message}`
+            }
+        }
+
         // Manual verification bypass
         if (searchParams.get('verify')) {
             const emailToVerify = searchParams.get('verify')
@@ -201,6 +212,7 @@ export async function GET(request: NextRequest) {
             status: "ready",
             quick_actions: {
                 clear_database: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?clean=true`,
+                delete_specific_user: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?delete_user=USER_EMAIL`,
                 initialize_schema: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?init=true`,
                 manual_verify_user: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?verify=USER_EMAIL`,
                 test_email_send: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?test_email=USER_EMAIL`
