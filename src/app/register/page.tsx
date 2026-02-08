@@ -58,7 +58,7 @@ export default function RegisterPage() {
           title: 'Success',
           description: 'Account created successfully. Please verify your email.',
         })
-        router.push('/verify-email')
+        router.push(`/verify-email?email=${encodeURIComponent(data.email)}`)
       } else {
         const error = await response.json()
         toast({

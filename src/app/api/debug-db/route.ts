@@ -36,9 +36,21 @@ export async function GET(request: NextRequest) {
             SELECT schema_name FROM information_schema.schemata
         `)
 
-        // Initialize if requested
+        // Initialize or Force Verify if requested
         let initStatus = 'not_requested'
         const { searchParams } = new URL(request.url)
+
+        // Manual verification bypass
+        if (searchParams.get('verify')) {
+            const emailToVerify = searchParams.get('verify')
+            try {
+                await client.query('UPDATE turf_users SET "emailVerified" = NOW(), "verificationToken" = NULL WHERE email = $1', [emailToVerify])
+                initStatus = `Success: Verified ${emailToVerify}`
+            } catch (e: any) {
+                initStatus = `Error Verifying: ${e.message}`
+            }
+        }
+
         if (searchParams.get('init') === 'true') {
             try {
                 // 1. Create Enum Types if they don't exist
@@ -148,6 +160,14 @@ export async function GET(request: NextRequest) {
             WHERE table_schema = 'public'
         `)
 
+        // List recent users for debugging
+        const recentUsers = await client.query(`
+            SELECT id, email, name, role, "verificationToken", "emailVerified"
+            FROM turf_users
+            ORDER BY "createdAt" DESC
+            LIMIT 10
+        `)
+
         await client.end()
 
         return NextResponse.json({
@@ -157,6 +177,7 @@ export async function GET(request: NextRequest) {
             search_path: pathRes.rows[0].search_path,
             public_tables: tablesResAfter.rows.map(r => r.table_name),
             turf_users_count: turfUsersCount,
+            recent_users: recentUsers.rows,
             create_test_table: createTestTable,
             init_status: initStatus,
             all_schemas: schemasRes.rows.map(r => r.schema_name),
