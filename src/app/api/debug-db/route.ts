@@ -88,7 +88,39 @@ export async function GET(request: NextRequest) {
                 initStatus = `Error Verifying: ${e.message}`
             }
         }
+        // High-level type correction (Bypass logic checks)
+        if (searchParams.get('force_fix_types') === 'true') {
+            try {
+                const results = []
+                // Fix users role
+                try {
+                    await client.query('ALTER TABLE turf_users ALTER COLUMN role DROP DEFAULT')
+                    await client.query('ALTER TABLE turf_users ALTER COLUMN role TYPE "Role" USING role::"Role"')
+                    await client.query('ALTER TABLE turf_users ALTER COLUMN role SET DEFAULT \'USER\'::"Role"')
+                    results.push('turf_users.role fixed')
+                } catch (e: any) { results.push(`Users Fix Error: ${e.message}`) }
 
+                // Fix bookings status
+                try {
+                    await client.query('ALTER TABLE turf_bookings ALTER COLUMN status DROP DEFAULT')
+                    await client.query('ALTER TABLE turf_bookings ALTER COLUMN status TYPE "BookingStatus" USING status::"BookingStatus"')
+                    await client.query('ALTER TABLE turf_bookings ALTER COLUMN status SET DEFAULT \'PENDING\'::"BookingStatus"')
+                    results.push('turf_bookings.status fixed')
+                } catch (e: any) { results.push(`Bookings Fix Error: ${e.message}`) }
+
+                // Fix payments status
+                try {
+                    await client.query('ALTER TABLE turf_payments ALTER COLUMN status DROP DEFAULT')
+                    await client.query('ALTER TABLE turf_payments ALTER COLUMN status TYPE "PaymentStatus" USING status::"PaymentStatus"')
+                    await client.query('ALTER TABLE turf_payments ALTER COLUMN status SET DEFAULT \'PENDING\'::"PaymentStatus"')
+                    results.push('turf_payments.status fixed')
+                } catch (e: any) { results.push(`Payments Fix Error: ${e.message}`) }
+
+                initStatus = `Force Fix Results: ${results.join(' | ')}`
+            } catch (e: any) {
+                initStatus = `Critical Force Fix Error: ${e.message}`
+            }
+        }
         if (searchParams.get('init') === 'true') {
             try {
                 // 1. Create Enum Types if they don't exist
@@ -221,6 +253,7 @@ export async function GET(request: NextRequest) {
                 clear_database: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?clean=true`,
                 delete_specific_user: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?delete_user=USER_EMAIL`,
                 initialize_schema: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?init=true`,
+                force_fix_enum_types: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?force_fix_types=true`,
                 manual_verify_user: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?verify=USER_EMAIL`,
                 test_email_send: `${process.env.NEXTAUTH_URL || 'YOUR_URL'}/api/debug-db?test_email=USER_EMAIL`
             },
