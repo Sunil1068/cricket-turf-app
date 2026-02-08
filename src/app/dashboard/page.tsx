@@ -24,9 +24,19 @@ export default async function DashboardPage() {
         redirect('/login')
     }
 
+    const PENDING_TIMEOUT_MINS = 10
+    const timeoutThreshold = dayjs().subtract(PENDING_TIMEOUT_MINS, 'minutes').toDate()
+
     const bookings = await prisma.booking.findMany({
         where: {
-            userId: session.user.id
+            userId: session.user.id,
+            OR: [
+                { status: 'CONFIRMED' },
+                {
+                    status: 'PENDING',
+                    createdAt: { gte: timeoutThreshold }
+                }
+            ]
         },
         include: {
             payment: true
